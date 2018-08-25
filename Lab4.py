@@ -38,18 +38,21 @@ def menu():
             #llamado a funcion que abre un archivo verificado y retorna datos de este
             rate, info, data , timp, t = process_audio(input_nombre)
             binArray = decToBinary(data)
-            binNoisy = decToBinary(data+awgn(len(data), 10))
+            #binNoisy = decToBinary(data+awgn(len(data), 10))
             #print("array binarios: ")
             #print(binArray)
             binFlat = transform_to_int(binArray)
             #print("ARREGLO BINARIO FLATTENED")
             #print(binFlat)
             m, largo, f, tiempoMod, bp = ask_modulation(binFlat[:100], 10)
-            binFlatNoisy = transform_to_int(binNoisy)
+            noisy = m+ awgn(len(m),1.0)
             graph(tiempoMod,binFlat[:9900], "uwu", "owo", "ewe")
-            ask_modulation(binFlatNoisy[:100], 10)
-            demod = ask_demodulation(bp, m, largo)
+            #ask_modulation(binFlatNoisy[:100], 10)
+            demod = ask_demodulation(10, m, largo)
+            demod2 = ask_demodulation(10, noisy, largo)
             graph(tiempoMod[:100],demod, "uwu", "owo", "ewe")
+            graph(tiempoMod[:100],demod2, "demod con ruido", "demod con ruido", "demod con ruido")
+            graphCompare(tiempoMod[:100],demod,tiempoMod[:100],demod2,"owo","uwu","demod sin ruido vs con ruido")
             option = second_menu(rate, info, data, timp, t)
             
         else:
@@ -214,6 +217,29 @@ def graph(x, y, labelx, labely, title):
     plt.plot(x, y)
     plt.show()
     return
+def graphCompare(x, y,x2,y2, labelx, labely, title):
+    #plt.title(title)
+    #plt.xlabel(labelx)
+    #plt.ylabel(labely)
+    #plt.plot(x, y)
+    #plt.plot(x2,y2)
+    #plt.show()
+	plt.title(title) # subplot 211 title
+	plt.figure(1)                # the first figure
+	plt.subplot(211)             # the first subplot in the first figure
+	plt.plot(x,y)
+	plt.subplot(212)             # the second subplot in the first figure
+	plt.plot(x2,y2)
+
+
+	           # a second figure
+	#plt.plot([4, 5, 6])          # creates a subplot(111) by default
+
+	#plt.figure(1)                # figure 1 current; subplot(212) still current
+	#plt.subplot(211)             # make subplot(211) in figure1 current
+	
+	plt.show()
+	return
 
 def fourier(rate, info, data):
      #funcion que transforma los datos obtenidos del archivo de sonidos al dominio de las frecuencias usando la transformada de fourier (rfft)
@@ -397,21 +423,21 @@ def decToBinary(data):
         binArray.append(dato.zfill(len(maxLen)))
     return binArray
 def ask_demodulation(bp, askSignal, lenT):
-	mn=[];
+	mn=[]
 	f=10/bp
-	for n in range(lenT, len(askSignal)+lenT, lenT):
-		t=np.arange(bp/99,bp,bp/99)
-		carrier=np.cos(2*np.pi*f*t)                                        # carrier siignal 
-		mm=np.multiply(carrier,askSignal[n-(lenT):n])
-		t4=np.arange(bp/99,bp,bp/99)
-		z=np.trapz(t4,mm)                                              # intregation 
+	for n in range(lenT,len(askSignal)+lenT,lenT):
+		t=np.arange(bp/100,bp,bp/100)
+		y=np.cos(2*np.pi*f*t)                                       
+		mm=np.multiply(y,askSignal[n-(lenT):n])
+		t4=np.arange(bp/100,bp,bp/100)
+		z=np.trapz(t4,mm)                                              
 		zz=np.round((2*z/bp))                                     
-		if zz>7.5:                                # logic level = (A1+A2)/2=7.5
+		if(zz>=1.0):                     
 			a=1
 		else:
 			a=0
 		mn.append(a)
-	return mn
+	return mn	
 def transform_to_int(data):
 
 	int_array = []
