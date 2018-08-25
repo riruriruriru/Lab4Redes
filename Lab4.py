@@ -38,12 +38,18 @@ def menu():
             #llamado a funcion que abre un archivo verificado y retorna datos de este
             rate, info, data , timp, t = process_audio(input_nombre)
             binArray = decToBinary(data)
+            binNoisy = decToBinary(data+awgn(len(data), 10))
             #print("array binarios: ")
             #print(binArray)
             binFlat = transform_to_int(binArray)
             #print("ARREGLO BINARIO FLATTENED")
             #print(binFlat)
-            ask_modulation(binFlat[:100], 10)
+            m, largo, f, tiempoMod, bp = ask_modulation(binFlat[:100], 10)
+            binFlatNoisy = transform_to_int(binNoisy)
+            graph(tiempoMod,binFlat[:9900], "uwu", "owo", "ewe")
+            ask_modulation(binFlatNoisy[:100], 10)
+            demod = ask_demodulation(bp, m, largo)
+            graph(tiempoMod[:100],demod, "uwu", "owo", "ewe")
             option = second_menu(rate, info, data, timp, t)
             
         else:
@@ -372,16 +378,16 @@ def ask_modulation(binA, bp):
 	print(len(m))
 	t3 = np.arange(bp/99, len(binA)*bp+bp/99, bp/99)
 	graph(t3, m, "Tiempo[s]", "Amplitud[db]", "Modulacion ASK ")
-	return m, largo, f
+	return m, largo, f, t3, bp
 def awgn(lenData, SNR):
-	np.random.normal(0.0, 1.0/SNR, lenData)
+	return np.random.normal(0.0, 1.0/SNR, lenData)
 def decToBinary(data):
     auxArray = []
     for i in data:
-        binary = bin(i)[2:]
+        binary = bin(int(i))[2:]
         if binary[0]=='b':
             i=i*-1
-            binary = "1"+bin(i)[2:]
+            binary = "1"+bin(int(i))[2:]
         else:
             binary = "0" + binary
         auxArray.append(binary)
@@ -393,36 +399,27 @@ def decToBinary(data):
 def ask_demodulation(bp, askSignal, lenT):
 	mn=[];
 	f=10/bp
-	for n in range(lenT, length(askSignal)+lenT, lenT):
+	for n in range(lenT, len(askSignal)+lenT, lenT):
 		t=np.arange(bp/99,bp,bp/99)
 		carrier=np.cos(2*np.pi*f*t)                                        # carrier siignal 
-		mm=np.multiply(carrier,askSignal[n-(lenT-1):n])
+		mm=np.multiply(carrier,askSignal[n-(lenT):n])
 		t4=np.arange(bp/99,bp,bp/99)
-		z=trapz(t4,mm)                                              # intregation 
+		z=np.trapz(t4,mm)                                              # intregation 
 		zz=np.round((2*z/bp))                                     
-		if zz>7.5:                                  # logic level = (A1+A2)/2=7.5
+		if zz>7.5:                                # logic level = (A1+A2)/2=7.5
 			a=1
 		else:
 			a=0
-		mn=mn.append(a)
+		mn.append(a)
 	return mn
 def transform_to_int(data):
-    
-    int_array = []
-    print("DENTRO FLAT")
-    print(data[0])
-    print(data[1])
-    print(data[1][7])
-    print(int("10011101"))
-    print(list("{0:b}".format(-37)))
-    print(list("{0:b}".format(37)))
-    a = list("{0:b}".format(-37))
-    print(list(map(int, list("{0:b}".format(37)))))
-    print(list(map(int, a)))
-    print(list(map(int, list("{0:b}".format(37)))).append(list(map(int, list("{0:b}".format(-37))))))
-    for i in range(len(data)):
-        for j in range(len(data[i])):
-            int_array.append(int(data[i][j]))
-    return int_array
+
+	int_array = []
+
+	for i in range(len(data)):
+		#int_array2.append(list(map(int, data[i])))
+		int_array +=list(map(int, data[i]))
+	#int_array2 = np.array(int_array2).flatten()
+	return int_array
 menu()
 
