@@ -37,23 +37,20 @@ def menu():
 					print('nombre de archivo no existente o fuera de directorio')
 			#llamado a funcion que abre un archivo verificado y retorna datos de este
 			rate, info, data , timp, t = process_audio(input_nombre)
-			binArray = decToBinary(data)
-			#indice = int(np.ceil((10**4)/len(binArray[0])))
-			#print("------_////////////-------------")
-			#print("indice")
-			#print(indice)
-			#print("------_//////----------")
-			#binArray = binArray[:indice]
-			binFlat = transform_to_int(binArray)
-			tiempo = np.arange(0.001/100,(0.001)*10000+0.001/100,0.001/100)
-			option = second_menu(rate, info, data, timp, t, binFlat[:10000], tiempo[:10000])
+			binArray = decToBinary(data) #se transforman los datos a binario en forma de lista de listas 
+			bin_transformed = transform_to_int(binArray) #se mapean a int y se aplana el arreglo
+			tiempo = np.arange(10/100,(10)*10000+10/100,10/100) #se crea un arreglo de tiempo para 10000 bits y bp = 10
+			print("Cargando...")
+			mod, largo, f, tiempoMod, bp = ask_modulation(bin_transformed[:10000], 10) #se realiza la modulacion con bp = 10 y 10000 datos
+			print("Listo")
+			option = second_menu(rate, info, data, timp, t, bin_transformed[:10000], tiempo[:10000], mod, largo, f, tiempoMod, bp) #se entregan los datos al segundo menu
 
 		else:
 			print('Ingrese una opcion correcta')
             
 	return
             
-def second_menu(rate, info, data, timp, t, binFlat, tiempo):
+def second_menu(rate, info, data, timp, t, arrayBin, tiempo, mod, largo, f, tiempoMod, bp):
 	option = 0
 	#Segundo menu que se llama cuando se abre correctamente un archivo
 	while option == 0:
@@ -69,16 +66,16 @@ def second_menu(rate, info, data, timp, t, binFlat, tiempo):
 			#opcion que sirve para retroceder al menu anterior y abrir un nuevo archivo
 			return 0
 		elif user_input=="1":
-			graficar_binario(binFlat,10, "Original")
+			graficar_binario(arrayBin,10, "Original") #se grafican los datos originales con bp iguala 10
 		elif user_input=="2":
-			option = third_menu_ask(rate, data, t, info, binFlat, tiempo)
+			option = third_menu_ask(rate, data, t, info, arrayBin, tiempo, mod, largo, f, tiempoMod, bp) #se ingresa al tercer menu
 		elif user_input=="4":
 			return 2
 		else:
 			print("Ingrese una opcion correcta")
 	return
 
-def third_menu_ask(rate, data,  t, info, binFlat, tiempo):
+def third_menu_ask(rate, data,  t, info, arrayBin, tiempo, mod, largo, f, tiempoMod, bp):
 	option = 0
 	while option == 0:
 		print('####################')
@@ -87,11 +84,10 @@ def third_menu_ask(rate, data,  t, info, binFlat, tiempo):
 		print('1) Aplicar modulacion ASK')
 		print('2) Retroceder al menu anterior')
 		print('3) Salir')
-		m, largo, f, tiempoMod, bp = ask_modulation(binFlat[:10000], 10)
 		user_input = input('Ingrese el numero de la opcion que desea ejecutar: ')
 		if user_input=="1":
-			graph(tiempoMod, m, "Tiempo[s]", "Bits", "Modulacion ASK")
-			ASK_demodulation_menu(tiempoMod, m,bp,largo,f, data, rate, info)
+			graph(tiempoMod, mod, "Tiempo[s]", "Amplitud", "Modulacion ASK") #se grafica la modulada
+			ASK_demodulation_menu(tiempoMod, mod,bp,largo,f, data, rate, info, arrayBin) #se ingresa al menu de demodulada
 		elif user_input=="2":
 			return 0
 		elif user_input=="3":
@@ -100,7 +96,7 @@ def third_menu_ask(rate, data,  t, info, binFlat, tiempo):
 			print('Ingrese una opcion valida')
 	return
 
-def ASK_demodulation_menu(tiempo, modulatedSignal, bp, largo, f, data, rate, info):
+def ASK_demodulation_menu(tiempo, modulatedSignal, bp, largo, f, data, rate, info, arrayBin):
 	option = 0
 	while option == 0:
 		print('####################')
@@ -118,6 +114,8 @@ def ASK_demodulation_menu(tiempo, modulatedSignal, bp, largo, f, data, rate, inf
 		user_input = input('Ingrese el numero de la opcion que desea ejecutar: ')
 		if user_input=="1":
 			graficar_binario(demod[:10000], bp, "Demodulada")
+			p=compare(demod, arrayBin)
+			graphCompare(tiempo[:10000],demod[:10000],tiempo[:10000],arrayBin[:10000],"Tiempo[s]","Bits","Demodulacion sin ruido vs señal original", p, bp,0)
 		elif user_input=="2":
 			noisy = modulatedSignal+ awgn(len(modulatedSignal),1.0)
 			demod2 = ask_demodulation(bp, noisy, largo)
@@ -156,13 +154,12 @@ def ASK_demodulation_menu(tiempo, modulatedSignal, bp, largo, f, data, rate, inf
 		else:
 			print('Ingrese una opcion valida')
 	return
+#Entrada: nombre de archivo ingresado por el usuario
 #funcion que se encarga de recibir un audio y obtener sus datos
+#salida: arreglo con datos, tiempo y rate
 def process_audio(archivo):
     
     rate,info=wavfile.read(archivo)
-    print('rate')
-    print(rate)
-    print(info)
     dimension = info[0].size
     print(dimension)
     if dimension==1:
@@ -173,10 +170,10 @@ def process_audio(archivo):
         perfect = 0
     timp = len(data)/rate
     t=linspace(0,timp,len(data))
-    print("LARGO t")
-    print(len(t))    
     return rate, info, data, timp, t
+#entradas: valores para eje x e y, etiquetas y titulo
 #funcion que recibe dos arreglos de la misma dimension y los grafica con las etiquetas tambien recibidas por argumento
+#salida: se muestra el grafico por pantalla
 def graph(x, y, labelx, labely, title):
 	if title == "Modulacion ASK":
 		plt.ylim(-1.5,1.5)
@@ -187,261 +184,120 @@ def graph(x, y, labelx, labely, title):
 	plt.plot(x, y)
 	plt.show()
 	return
+#Entradas: arreglos de tiempo y datos de las demoduladas sin y con ruido, tiempo de bit, valor del snr y titulo del grafico
+#Funcionamiento: se muestran dos señales (una con ruido y otra sin ruido) repitiendo bits 100 veces hasta completar 10000 bit, se muestran dos graficos por pantalla
+#Salidas: se muestra una figura con dos graficos por pantalla
 def graphCompare(x, y,x2,y2, labelx, labely, title, percent, bp, snr):
-    #plt.title(title)
-    #plt.xlabel(labelx)
-    #plt.ylabel(labely)
-    #plt.plot(x, y)
-    #plt.plot(x2,y2)
-    #plt.show()
 	yArray = []
 	yArray2 = []
-	for i in range(0, 100):
+	for i in range(0, 100):#se repiten 100 bits 100 veces para lograr los 10000 pedidos en la demodulada sin ruido, cambiar aca si se desean graficar mas datos
 		for j in range(0,100):
 			yArray.append(y[i])
-	for i in range(0, 100):
+	for i in range(0, 100): #se realiza lo mismo en el arreglo de la demodulada con ruido
 		for j in range(0,100):
 			yArray2.append(y2[i])
 	t = np.arange(bp/100, bp*len(yArray) + bp/100, bp/100)
 	t2 = np.arange(bp/100, bp*len(yArray2) + bp/100, bp/100)
-	fig = plt.figure(1)
-	fig.suptitle(title + " " +str(percent)+"%", fontsize=16)                # the first figure
-	ax = plt.subplot(211)             # the first subplot in the first figure
+	fig = plt.figure(1) #se crea la figura
+	fig.suptitle(title + " " +str(percent)+"%", fontsize=16) #se asigna titulo a la figura           
+	ax = plt.subplot(211)             #primer grafico de la figura
 	ax.set_title("Demodulada sin ruido")
-	plt.plot(x[:10000],yArray[:10000])
-	ax = plt.subplot(212)             # the second subplot in the first figure
-	plt.plot(x2[:10000],yArray2[:10000])
-
-
-	           # a second figure
-	#plt.plot([4, 5, 6])          # creates a subplot(111) by default
-
-	#plt.figure(1)                # figure 1 current; subplot(212) still current
-	#plt.subplot(211)             # make subplot(211) in figure1 current
-	
-	plt.show()
+	plt.plot(x[:10000],yArray[:10000]) #datos de la demodulada sin ruido
+	ax = plt.subplot(212)             #segundo grafico
+	plt.plot(x2[:10000],yArray2[:10000]) #datos de la demodulada con ruido
+	plt.show() #se muestra el grafico
 	return
-
-def fourier(rate, info, data):
-     #funcion que transforma los datos obtenidos del archivo de sonidos al dominio de las frecuencias usando la transformada de fourier (rfft)
-    timp = len(data)/rate
-    large = len(data)
-    #utilizando timp, se obtiene el tiempo total del archivo
-    fourierTransform = np.fft.fftshift(fft(data))
-    k = linspace(-len(fourierTransform)/2, len(fourierTransform)/2, len(fourierTransform))
-    frq = k/timp
-    print('largo de frecuencias ' + str(len(frq))+'largo datos ' + str(len(data)))
-    #con k se obtiene un arreglo con tamanio igual al largo de los datos obtenidos con la transformada y se dividen por el tiempo, obteniendo un arreglo de frecuencias
-    print(fourierTransform)   
-    #se retorna el arreglo de frecuencias y datos de la transformada de fourier
-    
-    return frq, fourierTransform
-    
-#Entradas: datos correspondientes a la señal original
-#Funcionamiento: Realiza una modulacion FM y grafica los resultados en el dominio del tiempo y de las frecuencias
-#Salida nada
-def FM_analog_modulation(rate, data, beta, t, info):
-	#funcion que modula una señal con modulacion analoga FM
-	title = str(beta*100) +"%"
-	#crea un nuevo set de datos llamando a interpolate()
-	data2 = interpolate(t, data, rate, info)
-	newLen = len(data2)
-	#crea un nuevo arreglo tiempo que tenga la misma dimension que el arreglo de datos
-	newTime = np.linspace(0,len(data)/(rate), newLen)
-	#frecuencia moduladora, debe ser mayor a la frecuencia original de muestreo
-	fc = 30000
-	#se define la portadora de la siguiente forma:
-	carrier = np.sin(2*np.pi*newTime)
-	w = fc*10*newTime
-	#se integra
-	integral = integrate.cumtrapz(data2, newTime, initial=0)
-	#se obtiene la señal modulada
-	resultado = np.cos(np.pi*w + beta*integral*np.pi)
-	#grafico normal
-	graph(t, data, "Tiempo[s]", "Amplitud[db]", "Tiempo vs Amplitud")
-	#grafico modulado
-	graph(newTime[1000:4000], resultado[1000:4000], "Tiempo[s]", "Amplitud[db]", "Modulacion FM al " +title)
-	#grafico fourier
-	freq, fourierT = fourier(rate*10, info, data)
-	graph(freq, fourierT, "Frecuencia[hz]", "Magnitud de Frecuencia[db]", "Transformada de Fourier datos originales")
-	#grafico fourier modulado
-	#se grafica Frecuencia vs Magnitud
-	freq2, fourierT2 = fourier(rate*10, info, resultado)
-	graph(freq2, fourierT2, "tiempo", "frecuencia", "Transformada de fourier modulacion FM al " +title)
-	return
-#Entradas: datos correspondiente a la señal original
-#Funcionamiento: se crea un nuevo arreglo de tiempo que refleja el muestreo que se quiere lograr, el cual se utiliza
-#para obtener un nuevo arreglo de datos resampleado e interpolado
-#Salidas: arreglo de datos resampleado
-def interpolate(t, data, rate, info):
-    interp = interp1d(t,data)
-    newTime = np.linspace(0,len(data)/rate,len(data)*10)
-    resultado = interp(newTime)
-    return resultado
-	
-#Entradas: datos correspondientes a la señal original
-#Funcionamiento: se realiza una modulacion AM analoga, mediante una interpolacion se remuestrea la señal y se grafican los resultados de la modulacion 
-#en el dominio del tiempo y las frecuencias
-#Salidas: datos resampleados y modulados
-def AM_analog_modulation(rate,data,beta,t, info):
-    title = str(beta*100) +"%"
-    print("RATE: ")
-    print(rate)
-    #se interpola para generar un nuevo arreglo de datos
-    data2 = interpolate(t, data, rate, info)
-    fc=30000
-    newLen = len(data2)
-    #segun el largo del nuevo arreglo de datos, se obtiene un nuevo arreglo de tiempo
-    newTime = np.linspace(0,len(data)/(rate), newLen)
-    #se calcula la portadora
-    carrier = np.cos(2*np.pi*newTime*fc)*beta
-    #se multiplica la portadora con los datos resampleados
-    resultado = carrier*data2
-    #grafico normal sin resample
-    graph(t, data, "Tiempo[s]", "Amplitud [db]", "Tiempo vs Amplitud")
-    #grafico modulado con resample
-    graph(newTime[1000:2000], resultado[1000:2000], "Tiempo[s]", "Amplitud [db]", "Tiempo vs Amplitud Modulado AM al "+title)
-    #grafico normal fourier sin resample
-    freqO, fourierTO = fourier(rate, info, data)
-    graph(freqO, fourierTO, "Frecuencia[hz]", "Magnitud de Frecuencia[db]", "Transformada Fourier datos originales")
-    #fourier resample
-    freq, fourierT = fourier(rate*10, info, data2)
-    #se grafica Frecuencia vs Magnitud
-    graph(freq, fourierT, "Frecuencia[hz]", "Magnitud de Frecuencia[db]", "Transformada Fourier resampleada")
-    #grafico fourier modulado
-    freq2, fourierT2 = fourier(rate*10, info, resultado)
-    #se grafica Frecuencia vs Magnitud
-    graph(freq2, fourierT2, "Frecuencia[hz]", "Magnitud de Frecuencia[db]", "Frecuencia vs Magnitud de Frecuencia Modulado AM al " + title)
-    return fc,  newTime, resultado, beta, data2
-
-
-#Entradas: datos correspondientes a la señal modulada y resampleada
-#Funcionamiento: se multiplican los datos modulados por la misma señal portadora que fue aplicada al momento de modular
-#luego se aplica un filtro de paso bajo para finalmente obtener la señal original
-#Salidas: se retornan los datos demodulados
-def AM_demodulation(data,rate,fc, newTime, beta, info):
-	#se multiplica la señal portadora original con los datos modulados
-    resultado = data*np.cos(2*np.pi*fc*newTime)/beta
-    #grafico demodulado
-    graph(newTime, resultado, "Tiempo[s]", "Amplitud [db]", "Tiempo vs Amplitud demodulado AM")
-    #grafico demodulado fourier
-    freq, fourierT = fourier(rate*10, info, resultado)
-    #se grafica Frecuencia vs Magnitud
-    graph(freq, fourierT, "Frecuencia[hz]", "Magnitud de Frecuencia[db]", "Frecuencia vs Magnitud de Frecuencia demodulado AM")
-    #se entregan los datos demodulados a la funcion firLowPass, que se encarga de realizar un filtro paso bajo
-    firLowPass(10*rate, resultado, newTime, info, fc)
-    return resultado
-
-def fsk_modulation(data, rate, time, info):
-	fs = rate  # sampling rate
-	baud = 300  # symbol rate
-	Nbits = 10**5  # number of bits
-	data2 = interpolate(time, data, rate, info)
-	newLen = len(data2)
-	#crea un nuevo arreglo tiempo que tenga la misma dimension que el arreglo de datos
-	newTime = np.linspace(0,len(data)/(rate), newLen)
-	Ns = fs/baud
-	N = Nbits * Ns
-	f0 = 30000
-	#bits = randn(Nbits,1) > 0 
-	#M = np.tile(bits*2-1,(1,Ns))
-	delta_f = 600
-	# compute phase by integrating frequency
-	ph = 2*pi*cumsum(f0 + data2*delta_f)/fs
-	#t = r_[0.0:N]/fs
-	FSK = sin(ph)
-	frq, fourierTransform = fourier(rate, info, FSK)
-	freq, fourierT = fourier(rate, info, data2)
-	#fig = figure(figsize = (16,4))
-	graph(newTime[1000:4000], FSK[1000:4000], "Tiempo[s]", "Amplitud[db]", "Modulacion FSK ")
-	graph(freq, fourierT, "Frecuencia[hz]", "Magnitud de Frecuencia[db]", "Transformada de Fourier datos originales")
-	graph(frq, fourierTransform, "Frecuencia[hz]", "Magnitud de Frecuencia[db]", "Transformada de Fourier Modulacion")
-	
+#Entradas: señal demodulada sin ruido y con ruido
+#Funcionamiento: se comparan las señales valor por valor y se cuentan los errores
+#Salida: valor que representa el porcentaje de error
 def compare(dmod, ndmod):
-	largo = len(dmod)
+	largo = len(dmod) #largo de la señal sin ruido, ambas son del mismo tamaño
 	cont = 0;
 	for i in range(0,largo):
-		if dmod[i]!=ndmod[i]:
+		if dmod[i]!=ndmod[i]: #se cuentan los errores
 			cont+=1
-	percent = 100*cont/largo
+	percent = 100*cont/largo #se pasa el valor a porcentaje
 	print("porcentaje de errores: ")
 	print(percent)
 	print("#####")
-	return percent
-	
+	return percent #se retorna el porcentaje
+#Entradas: arreglo de binarios y tiempo de bit
+#funcionamiento: se modula multiplicando la portadora por 1 o 0, debido a que la amplitud no se modifica, se concatenan estos valores generando un arreglo con los valores modulados
+#Salida: arreglo de modulada, largo del arreglo de tiempo generado, frecuencia, arreglo de tiempo con la misma dimension que la modulada y tiempo de bit
 def ask_modulation(binA, bp):
-	br = 1/bp
-	f = br*10
-	t2 = np.arange(bp/100, bp+bp/100, bp/100)
-	print("largo array tiempo: ")
-	print(len(t2))
-	largo = len(t2)
-	m = []
-	print("largo for: ", len(binA))
-	print("antes for")
-	for i in range(0, 10000):
-		if(binA[i]==1):
-			y = 1*np.cos(2*np.pi*f*t2)
+	br = 1/bp #bit rate
+	f = br*10 #frecuencia
+	t2 = np.arange(bp/100, bp+bp/100, bp/100) #arreglo de tiempo para la portadora
+	largo = len(t2) #largo del arreglo
+	mod = [] #arreglo de la modulada
+	for i in range(0, 10000): #ciclo para modular 10000 bits
+		if(binA[i]==1): #si el valor binario es igual a uno:
+			carrier = 1*np.cos(2*np.pi*f*t2) #se multiplica 1 por la portadora
 		elif(binA[i]==0):
-			y=0*np.cos(2*np.pi*f*t2)
-		m = np.concatenate((m,y))
-	print("despues for")
-	print("largo de m, señal odulada")
-	print(len(m))
-	t3 = np.arange(bp/100, 10000*bp+bp/100, bp/100)
-	return m, largo, f, t3, bp
+			carrier=0*np.cos(2*np.pi*f*t2) #en caso contrario, se multiplica por 0
+		mod = np.concatenate((mod,carrier)) #se concatenan los valores de la portadora con la señal modulada 
+	t3 = np.arange(bp/100, 10000*bp+bp/100, bp/100) #arreglo de tiempo con la misma dimension que la señal modulada
+	return mod, largo, f, t3, bp
+#Entradas: snr (signal to noise ratio) y largo del arreglo al cual se le desea añadir ruido
+#Procedimiento: se genera un arreglo de valores aleatorios con distribucion normal del mismo largo que los datos a los cuales se les quiere añadir ruido, ademas se aplica el valor de snr
+#Salidas: arreglo de ruido blanco aditivo
 def awgn(lenData, SNR):
 	return np.random.normal(0.0, 1.0/SNR, lenData)
+#Entradas: arreglo original de datos del archivo de audio
+#Funcionamiento: se recorre el arreglo e datos y se castea su contenido a binarios, agregando el bit de signo correspondiente y eliminando los caracteres de formato binario 0b, generandose un arreglo de arreglos
+#Salida: lista de listas de binarios en formato str
 def decToBinary(data):
     auxArray = []
-    for i in data:
-        binary = bin(int(i))[2:]
-        if binary[0]=='b':
-            i=i*-1
-            binary = "1"+bin(int(i))[2:]
+    for i in data: #se recorren los datos
+        binary = bin(int(i))[2:] #se castea el valor a int eliminando los caracteres 0b
+        if binary[0]=='b': #si aun existe una b, significa que el numero era de valor negativo
+            binary = "1"+bin(int(abs(i)))[2:] #se transforma nuevamente el valor pero en formato positivo y agregando el bit "1" que representa signo positivo
         else:
-            binary = "0" + binary
-        auxArray.append(binary)
-    maxLen = max(auxArray, key=len)
+            binary = "0" + binary #si el valor ya es positivo, se le agrega el bit 0 inicial
+        auxArray.append(binary) #se agrega el binario al arreglo auxiliar
+    maxLen = max(auxArray, key=len) #se busca el largo maximo en el arreglo auxiliar
     binArray = []
-    for dato in auxArray:
-        binArray.append(dato.zfill(len(maxLen)))
+    for elem in auxArray: #se recorre el arreglo auxiliar
+        binArray.append(elem.zfill(len(maxLen))) #todos los elementos se igualan a la misma longitud agregando ceros a la izquierda
     return binArray
+#Entradas: tiempo de bit, señal ask binaria y largo del arreglo de tiempo generado en la modulacion
+#Funcionamiento: Se multiplica la portadora con trozos de la señal modulada y luego se integra, comparando el valor con la amplitud esperada = 1 y asignando valores de bit iguales a 1 o 0
+#Salidas: arreglo de señal demodulada
 def ask_demodulation(bp, askSignal, lenT):
-	mn=[]
-	f=10/bp
-	print("largo de for:")
-	print(len(askSignal)+lenT)
+	demod=[] #arreglo que guarda los datos de la demodulada
+	f=10/bp #frecuencia segun tiempo de bit
+	#ciclo for en base al largo del arreglo de tiempo generado en la modulacion
+	t=np.arange(bp/100,bp,bp/100) #arreglo t segun el tiempo de bit
 	for n in range(lenT,len(askSignal)+lenT,lenT):
-		t=np.arange(bp/100,bp,bp/100)
-		y=np.cos(2*np.pi*f*t)                                       
-		mm=np.multiply(y,askSignal[n-(lenT-1):n])
-		t4=np.arange(bp/100,bp,bp/100)
-		z=np.trapz(t4,mm)                                              
-		zz=np.round((2*z/bp))                                     
-		if(zz>=1.0):                     
+		carrier=np.cos(2*np.pi*f*t)   #funcion portadora                                     
+		aux=np.multiply(carrier,askSignal[n-(lenT-1):n]) #se multiplica la portadora con un trozo de la señal modulada
+		integrate=np.trapz(t,aux) # integral                                              
+		rounded=np.round((2*integrate/bp))   #se redondea la division entre el valor de la integral y el tiempo de bit                       
+		if(rounded>=1.0): #como se espera una amplitud de 1 (debido a que la modulacion ASK no modifico la amplitud), si el valor de la integral sobrepasa 1, se asigna un valor de bit = 1                     
 			a=1
-		else:
+		else: #caso contrario, bit = 0
 			a=0
-		mn.append(a)
-	return mn	
-def transform_to_int(data):
-
-	int_array = []
-
-	for i in range(len(data)):
-		#int_array2.append(list(map(int, data[i])))
-		int_array +=list(map(int, data[i]))
-	#int_array2 = np.array(int_array2).flatten()
-	return int_array
+		demod.append(a) #se agrega al arreglo demodulado
+	return demod
+#Entrada: arreglo de datos binarios	en forma de lista de listas
+#Funcionamiento: recorre la lista de listas y mapea cada una de las sublistas concatenandolas entre si (dejando el arreglo plano) y transformando cada bit de str a int
+#Retorno: arreglo de datos binario plano y con datos de tipo int
+def transform_to_int(aBin):
+	int_array = [] #arreglo nuevo
+	for i in range(len(aBin)): #for para todo el arreglo de datos
+		int_array +=list(map(int, aBin[i])) #se mapean todos los elementos del sub arreglo a array y se concatena en el array vacio 
+	return int_array #se retorna el nuevo arreglo de bits
+#Entrada: tiempo de bit, titulo y arreglo de binarios
+#Funcionamiento: repite bits del arreglo 100 veces para visualizar la señal como pulsos cuadrados, se grafican 10000 datos
+#Salida: se muestra por pantalla un grafico del arreglo remuestrado
 def graficar_binario(arrayBin, bp, title):
 	print(len(arrayBin))
 	yArray = []
-	for i in range(0, len(arrayBin)):
-		for j in range(0,100):
-			yArray.append(arrayBin[i])
-	t = np.arange(bp/100, bp*len(yArray) + bp/100, bp/100)
-	graph(t[:10000],yArray[:10000], "Tiempo", "Amplitud", "Tiempo vs Amplitud " + title) 	
+	for i in range(0, 100): #como se muestran 10000 bits y cada bit se debe repetir 100 veces, solo se recorren los 100 primeros bits del arreglo
+		for j in range(0,100): #cada bit se repite 100 veces
+			yArray.append(arrayBin[i]) #se agregan a un nuevo arreglo
+	t = np.arange(bp/100, bp*len(yArray) + bp/100, bp/100) #se crea un arreglo de tiempo con la misma dimension que el arreglo de bit nuevo
+	graph(t[:10000],yArray[:10000], "Tiempo", "Amplitud", "Tiempo vs Amplitud " + title) 	 #se grafica tiempo vs amplitud
 	return
 	
 menu()
