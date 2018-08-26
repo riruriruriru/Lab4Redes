@@ -78,35 +78,6 @@ def second_menu(rate, info, data, timp, t, binFlat, tiempo):
 			print("Ingrese una opcion correcta")
 	return
 
-
-def third_menu(rate, data, t, info):
-    option = 0
-    while option == 0:
-        print('####################')
-        print('Menu FM')
-        print('Opciones:')
-        print('1) Aplicar modulacion analoga al 15%')
-        print('2) Aplicar modulacion analoga al 100%')
-        print('3) Aplicar modulacion analoga al 125%')
-        print('4) Retroceder al menu anterior')
-        print('5) Salir')
-        user_input = input('Ingrese el numero de la opcion que desea ejecutar: ')
-        if user_input=="1":
-            FM_analog_modulation(rate, data, 0.15, t, info)
-            #option = fourth_menu(rate, f_data, f_data2, f_data3, "Low Pass")
-        elif user_input=="2":
-            FM_analog_modulation(rate, data, 1, t, info)
-            #option = fourth_menu(rate, f_data, f_data2, f_data3, "High Pass")                        
-        elif user_input=="3":
-            FM_analog_modulation(rate, data, 1.25, t, info)
-            #option = fourth_menu(rate, f_data, f_data2, f_data3, "Band Pass")                 
-        elif user_input=="4":
-            return 0
-        elif user_input=="5":
-            return 2
-        else:
-            print('Ingrese una opcion valida')
-    return
 def third_menu_ask(rate, data,  t, info, binFlat, tiempo):
 	option = 0
 	while option == 0:
@@ -114,52 +85,20 @@ def third_menu_ask(rate, data,  t, info, binFlat, tiempo):
 		print('Menu ASK')
 		print('Opciones:')
 		print('1) Aplicar modulacion ASK')
-		print('2) Aplicar modulacion analoga al 100%')
-		print('3) Aplicar modulacion analoga al 125%')
-		print('4) Retroceder al menu anterior')
-		print('5) Salir')
-		m, largo, f, tiempoMod, bp = ask_modulation(binFlat, 10)
+		print('2) Retroceder al menu anterior')
+		print('3) Salir')
+		m, largo, f, tiempoMod, bp = ask_modulation(binFlat[:10000], 10)
 		user_input = input('Ingrese el numero de la opcion que desea ejecutar: ')
 		if user_input=="1":
 			graph(tiempoMod, m, "Tiempo[s]", "Bits", "Modulacion ASK")
 			ASK_demodulation_menu(tiempoMod, m,bp,largo,f, data, rate, info)
 		elif user_input=="2":
-			fc,  newTime, resultado, beta, data2 = AM_analog_modulation(rate, data, 1, t, info)
-			AM_demodulation_menu(fc,  newTime, resultado, beta, data2, rate, info)
-		elif user_input=="3":
-			fc,  newTime, resultado, beta, data2 = AM_analog_modulation(rate, data, 1.25, t, info)
-			AM_demodulation_menu(fc,  newTime, resultado, beta, data2, rate, info)
-		elif user_input=="4":
 			return 0
-		elif user_input=="5":
+		elif user_input=="3":
 			return 2
 		else:
 			print('Ingrese una opcion valida')
 	return
-
-#Filtro de tipo fir low pass
-def firLowPass(rate, data, t, info, fc):
-    #se calcula la frecuencia de nyquist 
-    nyq_f = rate/2.0
-    cutoff =  3000/nyq_f
-    numtaps = 1001
-    print("###########################")
-    print("nyq: ")
-    print(nyq_f)
-    #se obtienen los valores que se usaran para filtrar con firwin
-    print("cutoff: ")
-    print(cutoff/nyq_f)
-    print("#########")
-    taps = signal.firwin(numtaps, 3000/nyq_f, window = 'hamming')
-    #se aplica el filtro con lfilter
-    t2 = linspace(0,len(data)/(rate),len(data))
-    y = signal.lfilter(taps, 1.0, data)
-    #se grafican los tres filtros
-    freq, fourierT = fourier(rate, info, y)
-    graph(freq, fourierT, "Frecuencia[hz]", "Magnitud de Frecuencia[db]","Transformada de Fourier: filtro Low-Pass señal demodulada")
-    #se retornan los valores de las amplitudes
-    return y
-
 
 def ASK_demodulation_menu(tiempo, modulatedSignal, bp, largo, f, data, rate, info):
 	option = 0
@@ -182,32 +121,33 @@ def ASK_demodulation_menu(tiempo, modulatedSignal, bp, largo, f, data, rate, inf
 		elif user_input=="2":
 			noisy = modulatedSignal+ awgn(len(modulatedSignal),1.0)
 			demod2 = ask_demodulation(bp, noisy, largo)
-			graphCompare(tiempo[:100],demod[:100],tiempo[:100],demod2[:100],"Tiempo[s]","Bits","Demodulacion sin ruido vs con ruido (snr = 1.0)")
-			compare(demod, demod2)
+			p=compare(demod, demod2)
+			graphCompare(tiempo[:10000],demod[:10000],tiempo[:10000],demod2[:10000],"Tiempo[s]","Bits","Demodulacion sin ruido vs con ruido (snr = 1.0)", p, bp,1.0)
+			
 		
 		elif user_input=="3":
 			noisy = modulatedSignal+ awgn(len(modulatedSignal),2.0)
 			demod2 = ask_demodulation(bp, noisy, largo)
-			graphCompare(tiempo[:100],demod[:100],tiempo[:100],demod2[:100],"Tiempo[s]","Bits","Demodulacion sin ruido vs con ruido (snr = 2.0)")
-			compare(demod, demod2)
+			p=compare(demod, demod2)
+			graphCompare(tiempo[:10000],demod[:10000],tiempo[:10000],demod2[:10000],"Tiempo[s]","Bits","Demodulacion sin ruido vs con ruido (snr = 2.0)", p, bp,2.0)
 		
 		elif user_input=="4":
 			noisy = modulatedSignal+ awgn(len(modulatedSignal),5.0)
 			demod2 = ask_demodulation(bp, noisy, largo)
-			graphCompare(tiempo[:100],demod[:100],tiempo[:100],demod2[:100],"Tiempo[s]","Bits","Demodulacion sin ruido vs con ruido (snr = 5.0)")
-			compare(demod, demod2)
+			p=compare(demod, demod2)
+			graphCompare(tiempo[:10000],demod[:10000],tiempo[:10000],demod2[:10000],"Tiempo[s]","Bits","Demodulacion sin ruido vs con ruido (snr = 5.0)", p, bp,5.0)
 		
 		elif user_input=="5":
 			noisy = modulatedSignal+ awgn(len(modulatedSignal),8.0)
 			demod2 = ask_demodulation(bp, noisy, largo)
-			graphCompare(tiempo[:100],demod[:100],tiempo[:100],demod2[:100],"Tiempo[s]","Bits","Demodulacion sin ruido vs con ruido (snr = 8.0)")
-			compare(demod, demod2)
+			p=compare(demod, demod2)
+			graphCompare(tiempo[:10000],demod[:10000],tiempo[:10000],demod2[:10000],"Tiempo[s]","Bits","Demodulacion sin ruido vs con ruido (snr = 8.0)", p, bp,8.0)
 		
 		elif user_input=="6":
 			noisy = modulatedSignal+ awgn(len(modulatedSignal),10.0)
 			demod2 = ask_demodulation(bp, noisy, largo)
-			graphCompare(tiempo[:100],demod[:100],tiempo[:100],demod2[:100],"Tiempo[s]","Bits","Demodulacion sin ruido vs con ruido (snr = 10.0)")
-			compare(demod, demod2)
+			p=compare(demod, demod2)
+			graphCompare(tiempo[:10000],demod[:10000],tiempo[:10000],demod2[:10000],"Tiempo[s]","Bits","Demodulacion sin ruido vs con ruido (snr = 10.0)", p, bp,10.0)
         
 		elif user_input=="7":
 			return 0                        
@@ -240,26 +180,37 @@ def process_audio(archivo):
 def graph(x, y, labelx, labely, title):
 	if title == "Modulacion ASK":
 		plt.ylim(-1.5,1.5)
-		plt.xlim(0, 10000)
+		plt.xlim(0, 5000)
 	plt.title(title)
 	plt.xlabel(labelx)
 	plt.ylabel(labely)
 	plt.plot(x, y)
 	plt.show()
 	return
-def graphCompare(x, y,x2,y2, labelx, labely, title):
+def graphCompare(x, y,x2,y2, labelx, labely, title, percent, bp, snr):
     #plt.title(title)
     #plt.xlabel(labelx)
     #plt.ylabel(labely)
     #plt.plot(x, y)
     #plt.plot(x2,y2)
     #plt.show()
-	plt.title(title) # subplot 211 title
-	plt.figure(1)                # the first figure
-	plt.subplot(211)             # the first subplot in the first figure
-	plt.plot(x,y)
-	plt.subplot(212)             # the second subplot in the first figure
-	plt.plot(x2,y2)
+	yArray = []
+	yArray2 = []
+	for i in range(0, 100):
+		for j in range(0,100):
+			yArray.append(y[i])
+	for i in range(0, 100):
+		for j in range(0,100):
+			yArray2.append(y2[i])
+	t = np.arange(bp/100, bp*len(yArray) + bp/100, bp/100)
+	t2 = np.arange(bp/100, bp*len(yArray2) + bp/100, bp/100)
+	fig = plt.figure(1)
+	fig.suptitle(title + " " +str(percent)+"%", fontsize=16)                # the first figure
+	ax = plt.subplot(211)             # the first subplot in the first figure
+	ax.set_title("Demodulada sin ruido")
+	plt.plot(x[:10000],yArray[:10000])
+	ax = plt.subplot(212)             # the second subplot in the first figure
+	plt.plot(x2[:10000],yArray2[:10000])
 
 
 	           # a second figure
@@ -416,6 +367,7 @@ def compare(dmod, ndmod):
 	print("porcentaje de errores: ")
 	print(percent)
 	print("#####")
+	return percent
 	
 def ask_modulation(binA, bp):
 	br = 1/bp
