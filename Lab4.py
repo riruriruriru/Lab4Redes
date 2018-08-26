@@ -11,80 +11,72 @@ import scipy.integrate as integrate
 
 import matplotlib.pyplot as plt
 def menu():
-    #Muestra el menu principal y usando input se pide al usuario que ingrese la opcion que desea ejecutar
-    option = 0
-    while option == 0:
-        print('Menu Principal')
-        print('Opciones:')
-        print('1) Ingresar nombre de archivo de audio')
-        print('2) Salir')
-        user_input = input('Ingrese el numero de la opcion que desea ejecutar: ')
-        if user_input=="2":
-            #se retorna y finaliza el programa
-            return 0
-        elif user_input=="1":
-            #se pide ingresar un nombre de archivo
-            error = 1
-            while error == 1:
-                input_nombre = input('Ingrese nombre del archivo de audio: ')
+	#Muestra el menu principal y usando input se pide al usuario que ingrese la opcion que desea ejecutar
+	option = 0
+	while option == 0:
+		print('Menu Principal')
+		print('Opciones:')
+		print('1) Ingresar nombre de archivo de audio')
+		print('2) Salir')
+		user_input = input('Ingrese el numero de la opcion que desea ejecutar: ')
+		if user_input=="2":
+			#se retorna y finaliza el programa
+			return 0
+		elif user_input=="1":
+			#se pide ingresar un nombre de archivo
+			error = 1
+			while error == 1:
+				input_nombre = input('Ingrese nombre del archivo de audio: ')
                 #la apertura se realiza inicialmente en un try-except, para evitar que el programa se caiga
-                #en caso de que el archivo no pueda ser abierto
-                try:
-                    open(input_nombre, 'rb')
-                    error = 0
-                except FileNotFoundError:
-                    error = 1       
-                    print('nombre de archivo no existente o fuera de directorio')
-            #llamado a funcion que abre un archivo verificado y retorna datos de este
-            rate, info, data , timp, t = process_audio(input_nombre)
-            binArray = decToBinary(data)
-            #binNoisy = decToBinary(data+awgn(len(data), 10))
-            #print("array binarios: ")
-            #print(binArray)
-            binFlat = transform_to_int(binArray)
-            #print("ARREGLO BINARIO FLATTENED")
-            #print(binFlat)
-            m, largo, f, tiempoMod, bp = ask_modulation(binFlat[:100], 10)
-            noisy = m+ awgn(len(m),1.0)
-            graph(tiempoMod,binFlat[:9900], "uwu", "owo", "ewe")
-            #ask_modulation(binFlatNoisy[:100], 10)
-            demod = ask_demodulation(10, m, largo)
-            demod2 = ask_demodulation(10, noisy, largo)
-            graph(tiempoMod[:100],demod, "uwu", "owo", "ewe")
-            graph(tiempoMod[:100],demod2, "demod con ruido", "demod con ruido", "demod con ruido")
-            graphCompare(tiempoMod[:100],demod,tiempoMod[:100],demod2,"owo","uwu","demod sin ruido vs con ruido")
-            option = second_menu(rate, info, data, timp, t)
+				#en caso de que el archivo no pueda ser abierto
+				try:
+					open(input_nombre, 'rb')
+					error = 0
+				except FileNotFoundError:
+					error = 1       
+					print('nombre de archivo no existente o fuera de directorio')
+			#llamado a funcion que abre un archivo verificado y retorna datos de este
+			rate, info, data , timp, t = process_audio(input_nombre)
+			binArray = decToBinary(data)
+			indice = int(np.ceil((10**2)/len(binArray[0])))
+			print("------_////////////-------------")
+			print("indice")
+			print(indice)
+			print("------_//////----------")
+			binArray = binArray[:indice]
+			binFlat = transform_to_int(binArray)
+			tiempo = np.arange(10/100,(10)*len(binFlat)+10/100,10/100)
+			option = second_menu(rate, info, data, timp, t, binFlat, tiempo)
+
+		else:
+			print('Ingrese una opcion correcta')
             
-        else:
-            print('Ingrese una opcion correcta')
+	return
             
-    return
-            
-def second_menu(rate, info, data, timp, t):
-    option = 0
-    #Segundo menu que se llama cuando se abre correctamente un archivo
-    while option == 0:
-        print('##########################')
-        print('Menu Archivo')
-        print('Opciones:')
-        print('1) Modulacion FM analoga')
-        print('2) Modulacion AM analoga')
-        print('3) Retroceder al menu anterior')
-        print('4) Salir')
-        user_input = input('Ingrese el numero de la opcion que desea ejecutar: ')
-        if user_input=="3":
-            #opcion que sirve para retroceder al menu anterior y abrir un nuevo archivo
-            return 0
-        elif user_input=="1":            
-            option = third_menu(rate, data, t, info)
-        elif user_input=="2":
-            option = third_menu_am(rate, data, t, info)
-        elif user_input=="4":
-            
-            return 2
-        else:
-            print("Ingrese una opcion correcta")
-    return
+def second_menu(rate, info, data, timp, t, binFlat, tiempo):
+	option = 0
+	#Segundo menu que se llama cuando se abre correctamente un archivo
+	while option == 0:
+		print('##########################')
+		print('Menu Archivo')
+		print('Opciones:')
+		print('1) Mostrar Gráfico Binarizado')
+		print('2) Modulacion ASK digital')
+		print('3) Retroceder al menu anterior')
+		print('4) Salir')
+		user_input = input('Ingrese el numero de la opcion que desea ejecutar: ')
+		if user_input=="3":
+			#opcion que sirve para retroceder al menu anterior y abrir un nuevo archivo
+			return 0
+		elif user_input=="1":
+			graph(tiempo[:100],binFlat[:100], "Tiempo", "Bits", "Tiempo[s] vs Bits")            
+		elif user_input=="2":
+			option = third_menu_ask(rate, data, t, info, binFlat, tiempo)
+		elif user_input=="4":
+			return 2
+		else:
+			print("Ingrese una opcion correcta")
+	return
 
 
 def third_menu(rate, data, t, info):
@@ -115,34 +107,35 @@ def third_menu(rate, data, t, info):
         else:
             print('Ingrese una opcion valida')
     return
-def third_menu_am(rate, data,  t, info):
-    option = 0
-    while option == 0:
-        print('####################')
-        print('Menu AM')
-        print('Opciones:')
-        print('1) Aplicar modulacion analoga al 15%')
-        print('2) Aplicar modulacion analoga al 100%')
-        print('3) Aplicar modulacion analoga al 125%')
-        print('4) Retroceder al menu anterior')
-        print('5) Salir')
-        user_input = input('Ingrese el numero de la opcion que desea ejecutar: ')
-        if user_input=="1":
-            fc,  newTime, resultado, beta, data2 = AM_analog_modulation(rate, data, 0.15, t, info)
-            AM_demodulation_menu(fc,  newTime, resultado, beta, data2, rate, info)
-        elif user_input=="2":
-            fc,  newTime, resultado, beta, data2 = AM_analog_modulation(rate, data, 1, t, info)
-            AM_demodulation_menu(fc,  newTime, resultado, beta, data2, rate, info)
-        elif user_input=="3":
-            fc,  newTime, resultado, beta, data2 = AM_analog_modulation(rate, data, 1.25, t, info)
-            AM_demodulation_menu(fc,  newTime, resultado, beta, data2, rate, info)
-        elif user_input=="4":
-            return 0
-        elif user_input=="5":
-            return 2
-        else:
-            print('Ingrese una opcion valida')
-    return
+def third_menu_ask(rate, data,  t, info, binFlat, tiempo):
+	option = 0
+	while option == 0:
+		print('####################')
+		print('Menu ASK')
+		print('Opciones:')
+		print('1) Aplicar modulacion ASK')
+		print('2) Aplicar modulacion analoga al 100%')
+		print('3) Aplicar modulacion analoga al 125%')
+		print('4) Retroceder al menu anterior')
+		print('5) Salir')
+		m, largo, f, tiempoMod, bp = ask_modulation(binFlat, 10)
+		user_input = input('Ingrese el numero de la opcion que desea ejecutar: ')
+		if user_input=="1":
+			graph(tiempoMod, m, "Tiempo[s]", "Bits", "Modulacion ASK ")
+			ASK_demodulation_menu(tiempoMod, m,bp,largo,f, data, rate, info)
+		elif user_input=="2":
+			fc,  newTime, resultado, beta, data2 = AM_analog_modulation(rate, data, 1, t, info)
+			AM_demodulation_menu(fc,  newTime, resultado, beta, data2, rate, info)
+		elif user_input=="3":
+			fc,  newTime, resultado, beta, data2 = AM_analog_modulation(rate, data, 1.25, t, info)
+			AM_demodulation_menu(fc,  newTime, resultado, beta, data2, rate, info)
+		elif user_input=="4":
+			return 0
+		elif user_input=="5":
+			return 2
+		else:
+			print('Ingrese una opcion valida')
+	return
 
 #Filtro de tipo fir low pass
 def firLowPass(rate, data, t, info, fc):
@@ -168,23 +161,57 @@ def firLowPass(rate, data, t, info, fc):
     return y
 
 
-def AM_demodulation_menu(fc,  newTime, resultado, beta, data, rate, info):
+def ASK_demodulation_menu(tiempo, modulatedSignal, bp, largo, f, data, rate, info):
 	option = 0
-	text = str(beta*100) + "%"
 	while option == 0:
 		print('####################')
-		print('Menu AM Demodulacion')
+		print('Menu ASK Demodulacion')
 		print('Opciones:')
-		print('1) Aplicar demodulacion analoga AM al: ' + text)
-		print('2) Retroceder al menu anterior')
-		print('3) Salir')
+		print('1) Aplicar demodulacion ASK normal')
+		print('2) Aplicar demodulacion ASK con ruido, SNR = 1')
+		print('3) Aplicar demodulacion ASK con ruido, SNR = 2')
+		print('4) Aplicar demodulacion ASK con ruido, SNR = 5')
+		print('5) Aplicar demodulacion ASK con ruido, SNR = 8')
+		print('6) Aplicar demodulacion ASK con ruido, SNR = 10')
+		print('7) Retroceder al menu anterior')
+		print('8) Salir')
+		demod = ask_demodulation(bp, modulatedSignal, largo)
 		user_input = input('Ingrese el numero de la opcion que desea ejecutar: ')
 		if user_input=="1":
-			print("fc: ", fc)
-			AM_demodulation(resultado, rate, fc, newTime, beta, info)
+			graph(tiempo[:100],demod[:100], "Tiempo[s]", "Bits", "Tiempo vs Bits Demodulado")
 		elif user_input=="2":
-			return 0                        
+			noisy = modulatedSignal+ awgn(len(modulatedSignal),1.0)
+			demod2 = ask_demodulation(bp, noisy, largo)
+			graphCompare(tiempo[:100],demod[:100],tiempo[:100],demod2[:100],"Tiempo[s]","Bits","Demodulacion sin ruido vs con ruido (snr = 1.0)")
+			compare(demod, demod2)
+		
 		elif user_input=="3":
+			noisy = modulatedSignal+ awgn(len(modulatedSignal),2.0)
+			demod2 = ask_demodulation(bp, noisy, largo)
+			graphCompare(tiempo[:100],demod[:100],tiempo[:100],demod2[:100],"Tiempo[s]","Bits","Demodulacion sin ruido vs con ruido (snr = 2.0)")
+			compare(demod, demod2)
+		
+		elif user_input=="4":
+			noisy = modulatedSignal+ awgn(len(modulatedSignal),5.0)
+			demod2 = ask_demodulation(bp, noisy, largo)
+			graphCompare(tiempo[:100],demod[:100],tiempo[:100],demod2[:100],"Tiempo[s]","Bits","Demodulacion sin ruido vs con ruido (snr = 5.0)")
+			compare(demod, demod2)
+		
+		elif user_input=="5":
+			noisy = modulatedSignal+ awgn(len(modulatedSignal),8.0)
+			demod2 = ask_demodulation(bp, noisy, largo)
+			graphCompare(tiempo[:100],demod[:100],tiempo[:100],demod2[:100],"Tiempo[s]","Bits","Demodulacion sin ruido vs con ruido (snr = 8.0)")
+			compare(demod, demod2)
+		
+		elif user_input=="6":
+			noisy = modulatedSignal+ awgn(len(modulatedSignal),10.0)
+			demod2 = ask_demodulation(bp, noisy, largo)
+			graphCompare(tiempo[:100],demod[:100],tiempo[:100],demod2[:100],"Tiempo[s]","Bits","Demodulacion sin ruido vs con ruido (snr = 10.0)")
+			compare(demod, demod2)
+        
+		elif user_input=="7":
+			return 0                        
+		elif user_input=="8":
 			return 2
 		else:
 			print('Ingrese una opcion valida')
@@ -376,11 +403,17 @@ def fsk_modulation(data, rate, time, info):
 	graph(freq, fourierT, "Frecuencia[hz]", "Magnitud de Frecuencia[db]", "Transformada de Fourier datos originales")
 	graph(frq, fourierTransform, "Frecuencia[hz]", "Magnitud de Frecuencia[db]", "Transformada de Fourier Modulacion")
 	
-algo = {
-	"id":"dasd",
+def compare(dmod, ndmod):
+	largo = len(dmod)
+	cont = 0;
+	for i in range(0,largo):
+		if dmod[i]!=ndmod[i]:
+			cont+=1
+	percent = 100*cont/largo
+	print("porcentaje de errores: ")
+	print(percent)
+	print("#####")
 	
-
-}
 def ask_modulation(binA, bp):
 	A1 = 1
 	A2 = 0
@@ -403,7 +436,6 @@ def ask_modulation(binA, bp):
 	print("largo de m, señal odulada")
 	print(len(m))
 	t3 = np.arange(bp/99, len(binA)*bp+bp/99, bp/99)
-	graph(t3, m, "Tiempo[s]", "Amplitud[db]", "Modulacion ASK ")
 	return m, largo, f, t3, bp
 def awgn(lenData, SNR):
 	return np.random.normal(0.0, 1.0/SNR, lenData)
@@ -425,6 +457,8 @@ def decToBinary(data):
 def ask_demodulation(bp, askSignal, lenT):
 	mn=[]
 	f=10/bp
+	print("largo de for:")
+	print(len(askSignal)+lenT)
 	for n in range(lenT,len(askSignal)+lenT,lenT):
 		t=np.arange(bp/100,bp,bp/100)
 		y=np.cos(2*np.pi*f*t)                                       
