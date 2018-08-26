@@ -38,15 +38,15 @@ def menu():
 			#llamado a funcion que abre un archivo verificado y retorna datos de este
 			rate, info, data , timp, t = process_audio(input_nombre)
 			binArray = decToBinary(data)
-			indice = int(np.ceil((10**2)/len(binArray[0])))
-			print("------_////////////-------------")
-			print("indice")
-			print(indice)
-			print("------_//////----------")
-			binArray = binArray[:indice]
+			#indice = int(np.ceil((10**4)/len(binArray[0])))
+			#print("------_////////////-------------")
+			#print("indice")
+			#print(indice)
+			#print("------_//////----------")
+			#binArray = binArray[:indice]
 			binFlat = transform_to_int(binArray)
-			tiempo = np.arange(10/100,(10)*len(binFlat)+10/100,10/100)
-			option = second_menu(rate, info, data, timp, t, binFlat, tiempo)
+			tiempo = np.arange(0.001/100,(0.001)*10000+0.001/100,0.001/100)
+			option = second_menu(rate, info, data, timp, t, binFlat[:10000], tiempo[:10000])
 
 		else:
 			print('Ingrese una opcion correcta')
@@ -69,7 +69,7 @@ def second_menu(rate, info, data, timp, t, binFlat, tiempo):
 			#opcion que sirve para retroceder al menu anterior y abrir un nuevo archivo
 			return 0
 		elif user_input=="1":
-			graph(tiempo[:100],binFlat[:100], "Tiempo", "Bits", "Tiempo[s] vs Bits")            
+			graficar_binario(binFlat,10, "Original")
 		elif user_input=="2":
 			option = third_menu_ask(rate, data, t, info, binFlat, tiempo)
 		elif user_input=="4":
@@ -121,7 +121,7 @@ def third_menu_ask(rate, data,  t, info, binFlat, tiempo):
 		m, largo, f, tiempoMod, bp = ask_modulation(binFlat, 10)
 		user_input = input('Ingrese el numero de la opcion que desea ejecutar: ')
 		if user_input=="1":
-			graph(tiempoMod, m, "Tiempo[s]", "Bits", "Modulacion ASK ")
+			graph(tiempoMod, m, "Tiempo[s]", "Bits", "Modulacion ASK")
 			ASK_demodulation_menu(tiempoMod, m,bp,largo,f, data, rate, info)
 		elif user_input=="2":
 			fc,  newTime, resultado, beta, data2 = AM_analog_modulation(rate, data, 1, t, info)
@@ -178,7 +178,7 @@ def ASK_demodulation_menu(tiempo, modulatedSignal, bp, largo, f, data, rate, inf
 		demod = ask_demodulation(bp, modulatedSignal, largo)
 		user_input = input('Ingrese el numero de la opcion que desea ejecutar: ')
 		if user_input=="1":
-			graph(tiempo[:100],demod[:100], "Tiempo[s]", "Bits", "Tiempo vs Bits Demodulado")
+			graficar_binario(demod[:10000], bp, "Demodulada")
 		elif user_input=="2":
 			noisy = modulatedSignal+ awgn(len(modulatedSignal),1.0)
 			demod2 = ask_demodulation(bp, noisy, largo)
@@ -238,12 +238,15 @@ def process_audio(archivo):
     return rate, info, data, timp, t
 #funcion que recibe dos arreglos de la misma dimension y los grafica con las etiquetas tambien recibidas por argumento
 def graph(x, y, labelx, labely, title):
-    plt.title(title)
-    plt.xlabel(labelx)
-    plt.ylabel(labely)
-    plt.plot(x, y)
-    plt.show()
-    return
+	if title == "Modulacion ASK":
+		plt.ylim(-1.5,1.5)
+		plt.xlim(0, 10000)
+	plt.title(title)
+	plt.xlabel(labelx)
+	plt.ylabel(labely)
+	plt.plot(x, y)
+	plt.show()
+	return
 def graphCompare(x, y,x2,y2, labelx, labely, title):
     #plt.title(title)
     #plt.xlabel(labelx)
@@ -415,27 +418,25 @@ def compare(dmod, ndmod):
 	print("#####")
 	
 def ask_modulation(binA, bp):
-	A1 = 1
-	A2 = 0
 	br = 1/bp
 	f = br*10
-	t2 = np.arange(bp/99, bp+bp/99, bp/99)
+	t2 = np.arange(bp/100, bp+bp/100, bp/100)
 	print("largo array tiempo: ")
 	print(len(t2))
 	largo = len(t2)
 	m = []
 	print("largo for: ", len(binA))
 	print("antes for")
-	for i in range(0, len(binA)):
+	for i in range(0, 10000):
 		if(binA[i]==1):
-			y = A1*np.cos(2*np.pi*f*t2)
+			y = 1*np.cos(2*np.pi*f*t2)
 		elif(binA[i]==0):
-			y=A2*np.cos(2*np.pi*f*t2)
+			y=0*np.cos(2*np.pi*f*t2)
 		m = np.concatenate((m,y))
 	print("despues for")
 	print("largo de m, señal odulada")
 	print(len(m))
-	t3 = np.arange(bp/99, len(binA)*bp+bp/99, bp/99)
+	t3 = np.arange(bp/100, 10000*bp+bp/100, bp/100)
 	return m, largo, f, t3, bp
 def awgn(lenData, SNR):
 	return np.random.normal(0.0, 1.0/SNR, lenData)
@@ -462,7 +463,7 @@ def ask_demodulation(bp, askSignal, lenT):
 	for n in range(lenT,len(askSignal)+lenT,lenT):
 		t=np.arange(bp/100,bp,bp/100)
 		y=np.cos(2*np.pi*f*t)                                       
-		mm=np.multiply(y,askSignal[n-(lenT):n])
+		mm=np.multiply(y,askSignal[n-(lenT-1):n])
 		t4=np.arange(bp/100,bp,bp/100)
 		z=np.trapz(t4,mm)                                              
 		zz=np.round((2*z/bp))                                     
@@ -481,5 +482,15 @@ def transform_to_int(data):
 		int_array +=list(map(int, data[i]))
 	#int_array2 = np.array(int_array2).flatten()
 	return int_array
+def graficar_binario(arrayBin, bp, title):
+	print(len(arrayBin))
+	yArray = []
+	for i in range(0, len(arrayBin)):
+		for j in range(0,100):
+			yArray.append(arrayBin[i])
+	t = np.arange(bp/100, bp*len(yArray) + bp/100, bp/100)
+	graph(t[:10000],yArray[:10000], "Tiempo", "Amplitud", "Tiempo vs Amplitud " + title) 	
+	return
+	
 menu()
 
